@@ -1,0 +1,6 @@
+epochs : 100
+batchSize : 64
+learningRate : 0.001
+trainSamples : 50000
+valSamples : 2000
+testSamples : 1024

@@ -1,6 +1,8 @@
-epochs : 100
+epochs : 500
 batchSize : 64
-learningRate : 0.001
+learningRate : 0.00001
 trainSamples : 50000
-valSamples : 2000
+valSamples : 3000
 testSamples : 1024
+betas : [0.9, 0.999]
+weightDecay : 0

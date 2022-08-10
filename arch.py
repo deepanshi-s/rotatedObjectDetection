@@ -97,6 +97,7 @@ class FPN(nn.Module):
                 nn.Flatten(),
                 nn.Linear(downsampleChannel, 5)
         )
+        self.sigmoid = nn.Sigmoid()
         
     
     def forward(self, x):
@@ -112,13 +113,29 @@ class FPN(nn.Module):
         p2 = F.interpolate(p3, size=c2.shape[-2:], mode="nearest") + self.conv2Parallel(c2)
         
         classifierFeatures = self.pooling(p5)
-        regressionFeatures = self.pooling(p2)
+        regressionFeatures = self.pooling(p5)
         
         classification = self.classifier(classifierFeatures)
+        classification = self.sigmoid(classification)
         regression = self.regression(regressionFeatures)
+        regression = self.sigmoid(regression)
         
         starProb = classification.view(x.shape[0], 1)
         bbox = regression.view(x.shape[0], 5)
         
+        
         return torch.cat((starProb, bbox), dim=1)
         
+# Run file to see summary
+if __name__ == "__main__":
+    from torchsummary import summary
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    inp = torch.rand((2, 1, 200, 200))
+    net = FPN()
+    net.to(device)
+    inp = inp.to(device)
+    out = net(inp)
+
+    # print(out.shape)
+    summary(net, inp.shape[1:])
+    # print(net)

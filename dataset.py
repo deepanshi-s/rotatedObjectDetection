@@ -14,16 +14,25 @@ class starDataset(Dataset):
     def __init__(self, n_samples = 50000):
         self.n_samples = n_samples
         
+        self.img = []
+        self.labels = []
+        for i in range(n_samples):
+            image, label = synthesize_data()
+            self.img.append(image)
+            self.labels.append(label)
+
+
     def __len__(self):
         return self.n_samples
     
     def __getitem__(self, idx):
-        image, label = synthesize_data()
+        image, label = self.img[idx], self.labels[idx]
         
         image = torch.tensor(image, dtype=torch.float32)
         label = torch.tensor(label.reshape((label.shape[0])), dtype=torch.float32)
         has_star = (~torch.isnan(label[0])).float().reshape(1)
         label = torch.cat((has_star, label), dim = 0)
+        
         label[[1, 2]] /= 200.
         label[3] /= 2*np.pi
         label[[4,5]] /= 200.

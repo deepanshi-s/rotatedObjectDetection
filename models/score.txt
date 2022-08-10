@@ -1,0 +1,2 @@
+mIOU: 0.5809679542511775
+score from compute_score.py: 0.2598331346841478

@@ -1,0 +1,21 @@
+Computer Vision take-home: Astronomy
+
+- ResNet18 inspired Network for rotated object detection using Modulated Rotation Loss
+- Architecture: ResNet18 with classification and regression heads
+- Loss Function: Modulated Rotation Loss
+- Model Summary: modelSummary.txt
+- Final Score: score.txt
+- Final Model weights: model.pickle
+- Version requirements: requirements.txt
+- Configuration for teh model: config.yaml
+
+Method:
+- Generated a fixed number of images (defined in the config file) for train and validation dataloader with high noise and rotated objects. The probability of star being present in any image is set to 0.8
+- Normalize the values such that the range of the labels is [0, 1]
+- Add a classification label for every image based on the values of the generated labels
+- The images are passed through a ResNet18 inspired model with seprate classification and regression heads
+- Implement modulated loss function, to bridge the discontinuity in the values of rotation angle (yaw)
+
+Opportunities to Improve:
+- Add a more complex network (Upsampling from the bottleneck or FPN) for the regression head
+- Improvise the loss function to take into account the imbalance between the classes

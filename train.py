@@ -7,7 +7,7 @@ from arch import FPN
 from lossFunction import lossFunction
 from utils import score_iou
 from torch.utils.tensorboard import SummaryWriter
-
+import matplotlib.pyplot as plt
 
 def main():
     parser = ArgumentParser()
@@ -30,16 +30,20 @@ def main():
     batchSize = yamlObject['batchSize']
     lr = yamlObject['learningRate']
     epochs = yamlObject['epochs']
+    betas = yamlObject['betas']
+    deccay = yamlObject['weightDecay']
     
     trainLoader, valLoader, testLoader = datasetLoaders(trainSamples, valSamples, testSamples, batchSize)
     model = FPN()
-    optimizer = torch.optim.Adam(model.parameters(), lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr, betas=betas, weight_decay=deccay)
     
     model.to(args.device)
     
     writer = SummaryWriter()
     
-    valLoss = 99
+    lastScore = 0.0
+    lastLoss = 99
+    trainLastLoss = 99
     for numEpoch in range(1, epochs + 1):
         trainLossEpoch = []
         trainBoxLossEpoch = []
@@ -57,9 +61,10 @@ def main():
             image = image.to(device)
             label = label.to(device)
             prediction = model(image)
+            
             totalLoss, boxLoss, classLoss = lossFunction(prediction, label)
             
-            #print('line 62', label, prediction, totalLoss, boxLoss, classLoss)
+
             loss = totalLoss.mean()
             loss.backward()
             optimizer.step()
@@ -69,13 +74,11 @@ def main():
             trainclassLossEpoch.append(classLoss)
             
             
-        writer.add_scalar("Loss/total_Loss", torch.mean(torch.cat(trainLossEpoch)))
-        writer.add_scalar("Loss/box_Loss", torch.mean(torch.cat(trainBoxLossEpoch)))
-        writer.add_scalar("Loss/classification_loss", torch.mean(torch.cat(trainclassLossEpoch)))
-            
-        
+        writer.add_scalar("Loss/total_Loss", torch.mean(torch.cat(trainLossEpoch)), numEpoch)
+        writer.add_scalar("Loss/box_Loss", torch.mean(torch.cat(trainBoxLossEpoch)), numEpoch)
+        writer.add_scalar("Loss/classification_loss", torch.mean(torch.cat(trainclassLossEpoch)), numEpoch)
+                
         #validation step
-        
         with torch.no_grad():
             for i, batch in enumerate(valLoader):
                 image, label = batch
@@ -83,7 +86,9 @@ def main():
                 label = label.to(device)
                 
                 prediction = model(image)
+                
                 valLoss, boxLoss, classLoss = lossFunction(prediction, label)
+                
                 valLossEpoch.append(valLoss)
                 valBoxLossEpoch.append(boxLoss)
                 valclassLossEpoch.append(classLoss)
@@ -92,18 +97,26 @@ def main():
                 score.append(iou)
 
         score = np.mean(np.array(score))
-        writer.add_scalar("ValLoss/total_Loss", torch.mean(torch.cat(valLossEpoch)))
-        writer.add_scalar("ValLoss/box_Loss", torch.mean(torch.cat(valBoxLossEpoch)))
-        writer.add_scalar("ValLoss/classification_loss", torch.mean(torch.cat(valclassLossEpoch)))    
-        writer.add_scalar("metrics/iou", score)
+        writer.add_scalar("ValLoss/total_Loss", torch.mean(torch.cat(valLossEpoch)), numEpoch)
+        writer.add_scalar("ValLoss/box_Loss", torch.mean(torch.cat(valBoxLossEpoch)), numEpoch)
+        writer.add_scalar("ValLoss/classification_loss", torch.mean(torch.cat(valclassLossEpoch)), numEpoch)    
+        writer.add_scalar("metrics/iou", score, numEpoch)
             
         curLoss = torch.mean(torch.cat(valLossEpoch))
-        if curLoss < valLoss:
-            torch.save(model.state_dict(), "best.pickle")
-            valLoss = curLoss
+        if curLoss < lastLoss:
+            torch.save(model.state_dict(), "noUpsample/bestLoss.pickle")
+            lastLoss = curLoss
+        
+        if lastScore < score:
+            torch.save(model.state_dict(), "noUpsample/bestScore.pickle")
+            lastScore = score
             
-        print('Epoch number: %d, trainLoss: %d, valLoss: %d' %(numEpoch, trainLossEpoch, valLossEpoch)) 
-                
+        if totalLoss.mean() < trainLastLoss:
+            torch.save(model.state_dict(), "noUpsample/bestTrainLoss.pickle")
+            trainLastLoss = totalLoss.mean()
+
+        print('Epoch number: %d, trainLoss: %f, valLoss: %f, score: %f, bestScore: %f, lastLoss: %f' %(numEpoch, torch.mean(torch.cat(trainLossEpoch)), torch.mean(torch.cat(valLossEpoch)), score, lastScore, lastLoss)) 
+               
 
 if __name__ == '__main__':
     main()
